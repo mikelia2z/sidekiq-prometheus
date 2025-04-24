@@ -87,13 +87,13 @@ class SidekiqPrometheus::PeriodicMetrics
   def report_gc_metrics
     stats = GC.stat
     GC_STATS[:counters].each do |stat|
-      SidekiqPrometheus["sidekiq_#{stat}"]&.increment(labels: {}, by: stats[stat])
+      SidekiqPrometheus["sidekiq_#{stat}"]&.increment({}, stats[stat])
     end
     GC_STATS[:gauges].each do |stat|
-      SidekiqPrometheus["sidekiq_#{stat}"]&.set(stats[stat], labels: {})
+      SidekiqPrometheus["sidekiq_#{stat}"]&.set({}, stats[stat])
     end
 
-    SidekiqPrometheus[:sidekiq_rss]&.set(rss, labels: {})
+    SidekiqPrometheus[:sidekiq_rss]&.set({}, rss)
   end
 
   ##
@@ -101,12 +101,12 @@ class SidekiqPrometheus::PeriodicMetrics
   def report_global_metrics
     current_stats = sidekiq_stats.new
     GLOBAL_STATS.each do |stat|
-      SidekiqPrometheus["sidekiq_#{stat}"]&.set(current_stats.send(stat), labels: {})
+      SidekiqPrometheus["sidekiq_#{stat}"]&.set({}, current_stats.send(stat))
     end
 
     sidekiq_queue.all.each do |queue|
-      SidekiqPrometheus[:sidekiq_enqueued]&.set(queue.size, labels: {queue: queue.name})
-      SidekiqPrometheus[:sidekiq_queue_latency]&.observe(queue.latency, labels: {queue: queue.name})
+      SidekiqPrometheus[:sidekiq_enqueued]&.set({queue: queue.name}, queue.size)
+      SidekiqPrometheus[:sidekiq_queue_latency]&.observe({queue: queue.name}, queue.latency)
     end
   end
 
@@ -126,15 +126,15 @@ class SidekiqPrometheus::PeriodicMetrics
     return if redis_info.nil?
 
     REDIS_STATS.each do |stat|
-      SidekiqPrometheus["sidekiq_redis_#{stat}"]&.set(redis_info[stat].to_i, labels: {})
+      SidekiqPrometheus["sidekiq_redis_#{stat}"]&.set({}, redis_info[stat].to_i)
     end
 
     db_stats = redis_info.select { |k, _v| k.match(/^db/) }
     db_stats.each do |db, stat|
       label = {database: db}
       values = stat.scan(/\d+/)
-      SidekiqPrometheus[:sidekiq_redis_keys]&.set(values[0].to_i, labels: label)
-      SidekiqPrometheus[:sidekiq_redis_expires]&.set(values[1].to_i, labels: label)
+      SidekiqPrometheus[:sidekiq_redis_keys]&.set(label, values[0].to_i)
+      SidekiqPrometheus[:sidekiq_redis_expires]&.set(label, values[1].to_i)
     end
   end
 
