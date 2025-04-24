@@ -168,24 +168,55 @@ module SidekiqPrometheus::Metrics
     all_preset_labels.merge!(SidekiqPrometheus.preset_labels) if SidekiqPrometheus.preset_labels
 
     # Aggregate all labels
-    all_labels = labels | SidekiqPrometheus.custom_labels.fetch(name, []) | all_preset_labels.keys
+    # not used at all as metric don't support required labels concept
+    # all_labels = labels | SidekiqPrometheus.custom_labels.fetch(name, []) | all_preset_labels.keys
 
-    options = {docstring: docstring,
-               labels: all_labels,
-               preset_labels: all_preset_labels}
-
-    options[:buckets] = buckets if buckets
-
-    metric = registry.send(type, name.to_sym, **options)
-
+    # also need to add the presets labels
+    # just merge them into the base labels
     init_label_sets = SidekiqPrometheus.init_label_sets.fetch(name, [])
-    init_label_sets.each { |label_set| metric.init_label_set(label_set) }
+    init_label_sets.each { |label_set| all_preset_labels.merge!(label_set) }
 
-    metric
+    # we don't use this all_labels at all, because mmap version doesn't care...
+    # but it does force you to consistently have the same label for all metrics
+    # For the ruby client, you create a metric by doing this
+    # counter = Prometheus::Client::Counter.new(:service_requests_total, docstring: '...', labels: [:service])
+    # counter.increment(labels: { service: 'foo' })
+    # Here it enforce you to pass the "required" labels to use later on
+    #
+    # but the mmap version of metric do't care, it only has this base labels concept
+    # counter = Prometheus::Client::Counter.new(:service_requests_total, 'doc string', {service: '2323'})
+    # counter.increment({ service: 'bar' }, 5)
+    # counter.increment({ service: 'bar' }, 5)
+
+    # options = {docstring: docstring,
+    #            labels: all_labels,
+    #            preset_labels: all_preset_labels}
+
+    # options[:buckets] = buckets if buckets
+
+    # def gauge(name, docstring, base_labels = {}, multiprocess_mode = :all)
+    #   register(Gauge.new(name, docstring, base_labels, multiprocess_mode))
+    # end
+
+    # def histogram(name, docstring, base_labels = {},
+    #               buckets = Histogram::DEFAULT_BUCKETS)
+    #   register(Histogram.new(name, docstring, base_labels, buckets))
+    # end
+
+    if type == :histogram && buckets
+      # send buckets option
+      registry.send(type, name.to_sym, docstring, all_preset_labels, buckets)
+    else
+      registry.send(type, name.to_sym, docstring, all_preset_labels)
+    end
+
+    # init_label_sets = SidekiqPrometheus.init_label_sets.fetch(name, [])
+    # init_label_sets.each { |label_set| metric.init_label_set(label_set) }
   end
 
   def unregister(name:)
-    registry.unregister(name.to_sym)
+    # metric mmap doesn't support unregister
+    # registry.unregister(name.to_sym)
   end
 
   class InvalidMetricType < StandardError; end

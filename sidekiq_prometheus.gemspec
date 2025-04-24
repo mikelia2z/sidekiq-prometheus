@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "standard"
 
-  spec.add_runtime_dependency "prometheus-client", ">= 2.0"
+  spec.add_runtime_dependency "prometheus-client-mmap", ">= 1.2.9"
   spec.add_runtime_dependency "rack", "~> 3.0"
   spec.add_runtime_dependency "rackup", ">2.0"
   spec.add_runtime_dependency "redis"
